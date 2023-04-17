@@ -9,6 +9,7 @@ source("R/functions/integerise_values.R")
 
 fpath <- list(mye_coc = "data/intermediate/mye_coc.rds",
               modelled_od_flows = "data/processed/modelled_od_flows.rds",
+              modelled_od_flows_csv = "data/processed/modelled_od_flows.csv",
               unintegerised_flows = "data/processed/unintegerised_flows.rds",
               od_series = "data/intermediate/od_series.rds",
               saved_seed = "data/intermediate/saved_seed.rds"
@@ -284,3 +285,5 @@ modelled_od_flows <- full_output %>%
          age = as.integer(age))
 
 saveRDS(modelled_od_flows, fpath$modelled_od_flows)
+
+write_csv(modelled_od_flows, fpath$modelled_od_flows_csv)
