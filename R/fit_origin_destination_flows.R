@@ -8,7 +8,8 @@ source("R/functions/optimise_gross_flows.R")
 source("R/functions/integerise_values.R")
 
 fpath <- list(mye_coc = "data/intermediate/mye_coc.rds",
-              modelled_od_flows = "outputs/modelled_od_flows.rds",
+              modelled_od_flows = "data/processed/modelled_od_flows.rds",
+              unintegerised_flows = "data/processed/unintegerised_flows.rds",
               od_series = "data/intermediate/od_series.rds",
               saved_seed = "data/intermediate/saved_seed.rds"
               )
@@ -257,6 +258,8 @@ for(sel_age in unique(seed_df$age)) {
     i = 1
   }
 }
+
+saveRDS(full_output, fpath$unintegerised_flows)
 
 #### prepare and save outputs
 
