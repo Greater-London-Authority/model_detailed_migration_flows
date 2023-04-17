@@ -1,0 +1,75 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# model detailed migration flows
+
+This repository contains the code used by the GLA to model detailed 2021
+domestic migration flows by origin and destination for use in the
+2021-based interim population projections.
+
+Annual origin-destination flows for internal moves between local
+authority districts by age and sex are usually published by ONS
+alongside their Mid-Year Population Estimates (MYE). This data is a key
+input to the GLA’s population projection models. At the time of
+production (January 2023), ONS had not published detailed flow data for
+the year ending mid-2021. However, it had published estimates of gross
+internal flows to and from each local authority district in England and
+Wales as part of the ‘data for reconciliation’ that accompanied the
+published 2021 MYE. We used this data in combination with detailed flow
+data from previous years to create modelled OD flows for 2021 using
+iterative proportional fitting (IPF).
+
+The problem lends itself well to an IPF approach. The main complication
+in implementation is the lack of flow data for Scotland and Northern
+Ireland in the reconciliation data (the published detailed flow data
+includes the countries of Scotland and Northern Ireland within the flow
+matrix with English and Welsh local authority districts).
+
+An additional step is necessary to fit gross in- and out-flows for both
+Scotland and Northern Ireland before fitting the origin-destination
+flows. This is done by:
+
+- inferring the combined S&NI net balance with E&W from the difference
+  in the sum of inflows and outflows for all districts in the
+  reconciliation data
+- calculating typical in- and out-flows for S&NI (combined) from past
+  detailed OD data
+- use these typical flows as a basis for fitting modelled gross flows
+  for S&NI consistent with the calculated net
+- splitting the combined in- and out-flows into separate flows for
+  Scotland and Northern Ireland based upon the past relative sizes of
+  their gross flows
+
+## Setup
+
+The inputs to the process are:
+
+- The components of change from the ‘data for reconciliation’ published
+  by ONS alongside the 2021 MYE
+- Detailed annual internal migration flow estimates for years to
+  mid-2020 (originally published by ONS, the file used here has been
+  processed by the GLA to consolidate the annual series into a single
+  file on a consistent geography)
+
+The script *0_prepare_input_data.R* will download and prepare these
+inputs ready for use.
+
+## Use
+
+The script *fit_origin_destination_flows.R* will generate and save
+modelled origin destination flows for 2021.
+
+There are several parameters in this script that can be readily adjusted
+to modify the output of the process:
+
+- The vector *yrs_past_od* (default *c(2018, 2020)*) defines the period
+  of past detailed flow data to use as the basis for the seed
+  distribution
+- *min_fraction* (default *10*) determines the extent to which
+  fractional values in the modelled outputs are consolidated. Lower
+  values give fewer small fractional flows and smaller file sizes, at
+  the cost of some distortion of the results. A value of 1 gives integer
+  outputs.
+- *number_iterations* (default *40000*) determines the maximum number of
+  iterations for the IPF process. Higher values potentially give a
+  better fit at the expense of longer run times.
