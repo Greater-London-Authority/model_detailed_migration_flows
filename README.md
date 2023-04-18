@@ -14,17 +14,20 @@ domestic migration flows by origin and destination for use in the
   published here:
   <https://data.london.gov.uk/dataset/modelled-population-backseries>
 
-Annual origin-destination flows for internal moves between local
-authority districts by age and sex are usually published by ONS
-alongside their Mid-Year Population Estimates (MYE). This data is a key
-input to the GLA’s population projection models. At the time of
-production (January 2023), ONS had not published detailed flow data for
-the year ending mid-2021. However, it had published estimates of gross
-internal flows to and from each local authority district in England and
-Wales as part of the ‘data for reconciliation’ that accompanied the
-published 2021 MYE. We used this data in combination with detailed flow
-data from previous years to create modelled OD flows for 2021 using
-iterative proportional fitting (IPF).
+[Annual origin-destination
+flows](https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/migrationwithintheuk/datasets/internalmigrationbyoriginanddestinationlocalauthoritiessexandsingleyearofagedetailedestimatesdataset)
+for internal moves between local authority districts by age and sex are
+usually published by ONS alongside their [Mid-Year Population
+Estimates](https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland)
+(MYE). This data is a key input to the GLA’s population projection
+models. At the time of production (January 2023), ONS had not published
+detailed flow data for the year ending mid-2021. However, it had
+published estimates of gross internal flows to and from each local
+authority district in England and Wales as part of the ‘data for
+reconciliation’ that accompanied the published 2021 MYE. We used this
+data in combination with detailed flow data from previous years to
+create modelled OD flows for 2021 using iterative proportional fitting
+(IPF).
 
 The problem lends itself well to an IPF approach. The main complication
 in implementation is the lack of flow data for Scotland and Northern
