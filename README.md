@@ -7,6 +7,13 @@ This repository contains the code used by the GLA to model detailed 2021
 domestic migration flows by origin and destination for use in the
 2021-based interim population projections.
 
+- The 2021-based interim projections are available from the London
+  Datastore:
+  <https://data.london.gov.uk/demography/population-and-household-projections/>
+- Modelled input data, including the detailed migration flows, are
+  published here:
+  <https://data.london.gov.uk/dataset/modelled-population-backseries>
+
 Annual origin-destination flows for internal moves between local
 authority districts by age and sex are usually published by ONS
 alongside their Mid-Year Population Estimates (MYE). This data is a key
@@ -39,6 +46,24 @@ flows. This is done by:
 - splitting the combined in- and out-flows into separate flows for
   Scotland and Northern Ireland based upon the past relative sizes of
   their gross flows
+
+Outputs from iterative proportional fitting processes can include large
+numbers of small fractional values and these are often converted to
+integers in a manner that preserves the overall total. For our purposes,
+integer outputs would be desirable as it leads to smaller file sizes and
+faster run times when used as an input to the population projection
+models.
+
+However, in the case of origin-destination data, where values
+simultaneously represent flows from one area and to another, simple
+approaches to integerising outputs risk introducing significant
+distortions into the total flows to or from a given area. The approach
+taken here is a compromise between compactness of output and consistency
+with the original gross flows. Values are converted to multiples of 0.1
+(chosen through trial and error) rather than integers. This allows a
+large proportion of small flows to be removed, reducing the size of the
+output by a factor of approximately 15, while having a limited impact on
+overall gross flows.
 
 ## Setup
 
@@ -73,3 +98,8 @@ to modify the output of the process:
 - *number_iterations* (default *40000*) determines the maximum number of
   iterations for the IPF process. Higher values potentially give a
   better fit at the expense of longer run times.
+
+Further adjustments can be made to the configuration of the IPF
+function. More information can be found in the documentation that
+accompanies the [MIPFP](https://www.jstatsoft.org/article/view/v086c02)
+package.
