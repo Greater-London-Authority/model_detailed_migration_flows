@@ -68,6 +68,11 @@ large proportion of small flows to be removed, reducing the size of the
 output by a factor of approximately 15, while having a limited impact on
 overall gross flows.
 
+An alternative approach - not tested due to the time constraints under
+which the work was conducted - would be to allow explicit zero values in
+the seed table, rather than allocating combinations not present in the
+original data a small nominal value.
+
 ## Setup
 
 The inputs to the process are:
