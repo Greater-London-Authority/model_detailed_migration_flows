@@ -3,8 +3,9 @@ library(tidyr)
 library(ipfp)
 library(mipfp)
 library(reshape2)
+library(readr)
 
-source("R/functions/optimise_gross_flows.R")
+source("R/functions/fit_od_flows.R")
 source("R/functions/integerise_values.R")
 
 fpath <- list(mye_coc = "data/intermediate/mye_coc.rds",
@@ -13,10 +14,18 @@ fpath <- list(mye_coc = "data/intermediate/mye_coc.rds",
               unintegerised_flows = "data/processed/unintegerised_flows.rds",
               od_series = "data/intermediate/od_series.rds",
               saved_seed = "data/intermediate/saved_seed.rds"
-              )
+)
 
-yrs_past_od <- c(2018, 2022) # start/end years of period past detailed data used for starting distribution
+yrs_past_od <- c(2014, 2022) # start/end years of period past detailed data used for starting distribution
 yr_to_model <- 2023 # the year we are fitting for
+
+# fitted values likely to include large number of small fractional flows
+# we often convert results of IPF into integers, but with OD data this can change totals too much
+# not integerising at all makes file very big
+# compromise here is to allow limited range of fractional values
+# x/min_fraction - i.e. setting min_fraction of 10 allows values to be multiples of 1/10 = 0.1
+
+min_fraction <- 5
 
 # We want to match the domestic gross in- and out-flows from the ONS reconciliation data
 target_flows <- readRDS(fpath$mye_coc) %>%
@@ -115,9 +124,9 @@ rm(split_S_NI_outflow, split_S_NI_inflow, base_S_NI_inflow, base_S_NI_outflow, t
 
 seed_df <- od_data %>%
   group_by(gss_out, gss_in, sex, age) %>%
-  summarise(value = mean(value), .groups = "drop") %>%
+  summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
   mutate(age = as.character(age)) %>%
-  complete(gss_out, gss_in, age, sex, fill = list(value = 0.01)) %>%
+  complete(gss_out, gss_in, age, sex, fill = list(value = 0)) %>%
   arrange(sex, age, gss_in, gss_out)
 
 saveRDS(seed_df, fpath$saved_seed)
@@ -129,7 +138,6 @@ saveRDS(seed_df, fpath$saved_seed)
 #######
 
 # prepare target constraints #
-# fitting process is simpler if sums of in and outflows match (by age and sex)
 
 #target marginal flows
 tgt_inflow_df <- target_flows %>%
@@ -141,7 +149,7 @@ tgt_inflow_df <- target_flows %>%
   mutate(age = as.character(age)) %>%
   arrange(sex, age, gss_in)
 
-tgt_outflow_unadjusted <- target_flows %>%
+tgt_outflow_df <- target_flows %>%
   bind_rows(modelled_S_NI_flows) %>%
   filter(component %in% c("internal_out")) %>%
   rename(gss_out = gss_code) %>%
@@ -150,128 +158,16 @@ tgt_outflow_unadjusted <- target_flows %>%
   mutate(age = as.character(age)) %>%
   arrange(sex, age, gss_out)
 
-#ensure target totals match adjusting largest value in the outflows
-total_inflows <- tgt_inflow_df %>%
-  group_by(age, sex) %>%
-  summarise(inflow = sum(value), .groups = "drop")
 
-total_outflows <- tgt_outflow_unadjusted %>%
-  group_by(age, sex) %>%
-  summarise(outflow = sum(value), .groups = "drop")
+full_output <- fit_od_flows(tgt_inflow_df, tgt_outflow_df, seed_df, number_iterations = 150000)
 
-adjust_la <- tgt_outflow_unadjusted %>%
-  group_by(age, sex) %>%
-  top_n(1, value) %>%
-  ungroup() %>%
-  select(-value)
 
-tgt_adjustment <- total_inflows %>%
-  left_join(total_outflows, by = c("age", "sex")) %>%
-  mutate(value = inflow - outflow) %>%
-  select(-inflow, -outflow) %>%
-  left_join(adjust_la, by = c("age", "sex"))
-
-tgt_outflow_df <- tgt_outflow_unadjusted %>%
-  bind_rows(tgt_adjustment) %>%
-  group_by(gss_out, age, sex) %>%
-  summarise(value = sum(value)) %>%
-  ungroup() %>%
-  arrange(sex, age, gss_out)
-
-rm(tgt_outflow_unadjusted, tgt_adjustment, total_inflows, total_outflows, adjust_la)
-
-####### Fit origin-destination flows
-
-number_iterations <- 40000
-
-# formulae used to cast data frames into arrays
-tgt_inflow_formula <- "gss_in ~ age ~ sex"
-tgt_outflow_formula <- "gss_out ~ age ~ sex"
-seed_formula <- "gss_out ~ gss_in ~ age ~ sex"
-
-# flows are fit for single combination of age and sex at a time (this is more efficient that fitting for all at once)
-# the process loops over age and sex
-# TODO normally we'd prepare a list to store the results and not bind_rows within it [we also might avoid filtering within]
-
-i = 0 #flag for first loop
-
-for(sel_age in unique(seed_df$age)) {
-
-  for(sel_sex in unique(seed_df$sex)) {
-
-    message(format(Sys.time(), "%X"), " - ", sel_age, " - ", sel_sex)
-
-    ### filter target and seed data frames by age/sex and cast into arrays
-    sel_tgt_inflow_df <- tgt_inflow_df %>%
-      filter(age == sel_age,
-             sex == sel_sex)
-
-    sel_tgt_outflow_df <- tgt_outflow_df %>%
-      filter(age == sel_age,
-             sex == sel_sex)
-
-    target_inflow <- acast(data = sel_tgt_inflow_df,
-                           formula = as.formula(tgt_inflow_formula),
-                           value.var = "value",
-                           fill = 0)
-
-    target_outflow <- acast(data = sel_tgt_outflow_df,
-                            formula = as.formula(tgt_outflow_formula),
-                            value.var = "value",
-                            fill = 0)
-
-    sel_seed_df <- seed_df %>%
-      filter(age == sel_age,
-             sex == sel_sex)
-
-    seed_tbl <- acast(data = sel_seed_df,
-                      formula = as.formula(seed_formula),
-                      value.var = "value",
-                      fill = 0.01)
-
-    #create list of target data and also list defining relationships to contingency table dimensions
-    target_data <- list("outflows" = target_outflow,
-                        "inflows" = target_inflow)
-
-    target_dimension_list <- list("outflows" = c(1, 3, 4),
-                                  "inflows" = c(2, 3, 4))
-
-    #### fit table and convert output to data frame
-    results.ipfp <- Estimate(seed = seed_tbl,
-                             target.list = target_dimension_list,
-                             target.data = target_data,
-                             method = "ipfp",
-                             iter = number_iterations)
-
-    output <- melt(results.ipfp$x.hat, value.name = "value") %>%
-      mutate_at(vars(-value), funs(as.character)) %>%
-      filter(value > 0)
-
-    colnames(output) <- c("gss_out", "gss_in", "age", "sex", "value")
-
-    # combine output from each loop into single data frame
-    if(i == 0) {
-      full_output <- output
-    } else {
-      full_output <- bind_rows(full_output, output)
-    }
-
-    i = 1
-  }
-}
 
 saveRDS(full_output, fpath$unintegerised_flows)
 
 #### prepare and save outputs
 
-# fitted values likely to include large number of small fractional flows
-# we often convert results of IPF into integers, but with OD data this can change totals too much
-# not integerising at all makes file very big
-# compromise here is to allow limited range of fractional values
-# x/min_fraction - i.e. setting min_fraction of 10 allows values to be multiples of 1/10 = 0.1
-
 # integerise and add year
-min_fraction <- 10
 
 modelled_od_flows <- full_output %>%
 
